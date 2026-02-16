@@ -22,20 +22,33 @@ A comprehensive documentation generator for Blender projects that scans your pro
 ## Requirements
 
 - Python 3.11+
-- Blender 5.0+ (for blend file analysis)
-- Dependencies: `bpy`, `networkx`, `reportlab`, `Pillow`, `pandas`, `matplotlib`
+- Blender 5.0+ (for blend file analysis - optional, tool works without it)
+- Core dependencies: `networkx`, `reportlab`, `Pillow`, `pandas`, `matplotlib`
+- Note: `bpy` (Blender Python API) is not installed via pip - it comes bundled with Blender
 
 ## Installation
+
+### Step 1: Install Python Package
 
 ```bash
 pip install -e .
 ```
 
-Or install with dependencies:
+This installs the tool with the core dependencies (networkx, reportlab, Pillow, pandas).
 
-```bash
-pip install -r requirements.txt
-```
+### Step 2: Install Blender (Optional)
+
+For full functionality including blend file metadata and dependency extraction, Blender 5.0+ must be installed.
+
+**Windows:**
+- Download from [blender.org](https://www.blender.org/download/)
+- Add Blender to your system PATH, or specify manually: `blender-doc --folder ./project --blender-path "C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"`
+
+**macOS/Linux:**
+- Install via package manager or from [blender.org](https://www.blender.org/download/)
+- Verify installation: `blender --version`
+
+The tool will automatically detect Blender if installed. Without Blender, the tool still works but won't extract blend file metadata.
 
 ## Usage
 

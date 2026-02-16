@@ -52,8 +52,10 @@ class BlenderIntegration:
 import bpy
 import json
 import sys
+from pathlib import Path
 
 blend_path = sys.argv[-1]
+blend_dir = str(Path(blend_path).parent)
 
 try:
     bpy.ops.wm.open_mainfile(filepath=blend_path)
@@ -63,25 +65,69 @@ except Exception as e:
 
 external_files = []
 
-# Check for linked libraries
+# Check for linked libraries (linked .blend files)
 for library in bpy.data.libraries:
     if library.filepath:
-        external_files.append(library.filepath)
+        lib_path = library.filepath
+        # Handle relative paths
+        if not Path(lib_path).is_absolute():
+            lib_path = str(Path(blend_dir) / lib_path)
+        # Normalize the path
+        try:
+            lib_path = str(Path(lib_path).resolve())
+            external_files.append(lib_path)
+        except:
+            external_files.append(lib_path)
 
 # Check for image textures
 for image in bpy.data.images:
     if image.filepath and not image.packed_file:
-        external_files.append(image.filepath)
+        img_path = image.filepath
+        # Handle relative paths (// prefix in Blender means relative to blend file)
+        if img_path.startswith('//'):
+            img_path = str(Path(blend_dir) / img_path[2:])
+        elif not Path(img_path).is_absolute():
+            img_path = str(Path(blend_dir) / img_path)
+        # Normalize the path
+        try:
+            img_path = str(Path(img_path).resolve())
+            if Path(img_path).exists():
+                external_files.append(img_path)
+        except:
+            pass
 
-# Check for linked objects/collections from other files
-for scene in bpy.data.scenes:
-    # Check for linked datablocks
-    pass
+# Check for linked objects/collections and node tree files
+for obj in bpy.data.objects:
+    # Check for linked object data
+    if hasattr(obj, 'data') and obj.data and hasattr(obj.data, 'library'):
+        if obj.data.library and obj.data.library.filepath:
+            lib_path = obj.data.library.filepath
+            if not Path(lib_path).is_absolute():
+                lib_path = str(Path(blend_dir) / lib_path)
+            try:
+                lib_path = str(Path(lib_path).resolve())
+                if lib_path not in external_files:
+                    external_files.append(lib_path)
+            except:
+                pass
 
-# Remove duplicates and convert to absolute paths
+# Check for compositor/shader node trees that reference files
+for world in bpy.data.worlds:
+    if world.node_tree:
+        for node in world.node_tree.nodes:
+            if hasattr(node, 'filepath') and node.filepath:
+                file_path = node.filepath
+                if not Path(file_path).is_absolute():
+                    file_path = str(Path(blend_dir) / file_path)
+                try:
+                    file_path = str(Path(file_path).resolve())
+                    if Path(file_path).exists() and file_path not in external_files:
+                        external_files.append(file_path)
+                except:
+                    pass
+
+# Remove duplicates
 external_files = list(set(external_files))
-external_files = [str(Path(f).resolve()) if Path(f).exists() else f 
-                   for f in external_files]
 
 print(json.dumps({"external_files": external_files, "error": None}))
 """

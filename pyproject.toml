@@ -15,14 +15,17 @@ authors = [
 keywords = ["blender", "documentation", "asset-management", "digraph", "pdf"]
 
 dependencies = [
-    "bpy>=4.0.0",
     "networkx>=3.0",
     "reportlab>=4.0.0",
     "Pillow>=10.0.0",
     "pandas>=2.0.0",
+    "matplotlib>=3.5.0",
 ]
 
 [project.optional-dependencies]
+blender = [
+    "bpy>=4.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -36,7 +39,7 @@ blender-doc = "blender_doc.cli:main"
 
 [tool.setuptools]
 packages = ["blender_doc"]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.black]
 line-length = 100

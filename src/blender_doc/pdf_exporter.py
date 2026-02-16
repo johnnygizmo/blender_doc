@@ -11,7 +11,6 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Spacer
 from reportlab.platypus import Image as RLImage
-from reportlab.pagesizes import landscape
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -45,33 +44,39 @@ class PDFExporter:
         self.digraph_builder = digraph_builder
         self.output_path = Path(output_path)
         self.output_mode = output_mode
+        self.temp_files = []
     
     def export(self) -> None:
         """Generate and save the PDF report."""
-        # Create document
-        doc = SimpleDocTemplate(
-            str(self.output_path),
-            pagesize=letter,
-            topMargin=0.5*inch,
-            bottomMargin=0.5*inch,
-            leftMargin=0.5*inch,
-            rightMargin=0.5*inch,
-        )
+        try:
+            # Create document
+            doc = SimpleDocTemplate(
+                str(self.output_path),
+                pagesize=letter,
+                topMargin=0.5*inch,
+                bottomMargin=0.5*inch,
+                leftMargin=0.5*inch,
+                rightMargin=0.5*inch,
+            )
+            
+            # Build content based on output mode
+            content = []
+            
+            if self.output_mode in ('full', 'digraph_only'):
+                content.extend(self._build_digraph_section())
+            
+            if self.output_mode in ('full', 'details_only'):
+                if self.output_mode == 'full':
+                    content.append(PageBreak())
+                content.extend(self._build_details_section())
+            
+            # Build PDF
+            doc.build(content)
+            print(f"PDF exported to: {self.output_path}")
         
-        # Build content based on output mode
-        content = []
-        
-        if self.output_mode in ('full', 'digraph_only'):
-            content.extend(self._build_digraph_section())
-        
-        if self.output_mode in ('full', 'details_only'):
-            if self.output_mode == 'full':
-                content.append(PageBreak())
-            content.extend(self._build_details_section())
-        
-        # Build PDF
-        doc.build(content)
-        print(f"PDF exported to: {self.output_path}")
+        finally:
+            # Clean up temp files
+            self._cleanup_temp_files()
     
     def _build_digraph_section(self) -> List:
         """Build the digraph visualization section."""
@@ -97,6 +102,9 @@ class PDFExporter:
             img_path = self._render_digraph_image(digraph)
             
             if img_path:
+                # Track temp file for cleanup
+                self.temp_files.append(img_path)
+                
                 # Add image
                 img = RLImage(
                     img_path,
@@ -105,12 +113,6 @@ class PDFExporter:
                     kind='proportional',
                 )
                 content.append(img)
-                
-                # Clean up temp file later
-                try:
-                    Path(img_path).unlink()
-                except:
-                    pass
         else:
             content.append(Paragraph('No dependencies found', styles['Normal']))
         
@@ -353,3 +355,11 @@ class PDFExporter:
         except Exception as e:
             print(f"Warning: Failed to render digraph image: {e}")
             return None
+    
+    def _cleanup_temp_files(self) -> None:
+        """Clean up temporary files."""
+        for temp_file in self.temp_files:
+            try:
+                Path(temp_file).unlink()
+            except Exception as e:
+                print(f"Warning: Could not delete temp file {temp_file}: {e}")

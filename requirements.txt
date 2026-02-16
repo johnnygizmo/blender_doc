@@ -1,4 +1,4 @@
-bpy>=4.0.0
+# Core dependencies (bpy is optional and comes with Blender)
 networkx>=3.0
 reportlab>=4.0.0
 Pillow>=10.0.0

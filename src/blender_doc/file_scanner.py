@@ -2,6 +2,7 @@
 
 import os
 import mimetypes
+import re
 from pathlib import Path
 from typing import List, Tuple, Set
 from collections import deque
@@ -25,6 +26,7 @@ class FileScanner:
     SKIP_PATTERNS = {
         '.git', '.gitignore', '__pycache__', '.DS_Store', 'thumbs.db',
         '.pytest_cache', '.venv', 'venv', 'node_modules',
+        'blender_assets.cats.txt',  # Blender asset catalog file
     }
     
     def __init__(self, root_folder: Path):
@@ -81,6 +83,11 @@ class FileScanner:
             return True
         if filename.startswith('.'):
             return True
+        
+        # Skip Blender backup files (.blend1, .blend2, etc.)
+        if re.match(r'.*\.blend\d+$', filename):
+            return True
+        
         return False
     
     def _create_file_entry(self, folder: Path, filename: str) -> FileEntry | None:
