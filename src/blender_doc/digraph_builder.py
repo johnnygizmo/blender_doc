@@ -70,6 +70,8 @@ class DigraphBuilder:
                         weight=1,
                     )
                 else:
+                    # Increment weight if edge already exists
+                    self.digraph[source_node_id][target_node_id]['weight'] += 1
         
         return self.digraph
     

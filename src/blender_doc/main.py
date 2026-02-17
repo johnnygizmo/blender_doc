@@ -99,7 +99,7 @@ def process_project(
     
     stats = digraph_builder.get_statistics()
     if verbose:
-        print(f"  Digraph: {stats['node_count']} folders, {stats['edge_count']} dependencies",
+        print(f"  Digraph: {stats['file_count']} files, {stats['link_count']} links",
               file=sys.stderr)
     
     # Step 5: Export to PDF
@@ -122,8 +122,8 @@ def process_project(
     print(f"\n=== Documentation Report ===")
     print(f"Output: {output_path}")
     print(f"Files scanned: {len(entries)}")
-    print(f"Folders: {stats['node_count']}")
-    print(f"Dependencies: {stats['edge_count']}")
+    print(f"Files in graph: {stats['file_count']}")
+    print(f"Dependencies found: {stats['link_count']}")
     print(f"Mode: {output_mode}")
 
 

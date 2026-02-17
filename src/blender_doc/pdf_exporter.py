@@ -119,7 +119,7 @@ class PDFExporter:
         # Add statistics
         content.append(Spacer(1, 0.3*inch))
         stats = self.digraph_builder.get_statistics()
-        stats_text = f"Folders: {stats['node_count']} | Dependencies: {stats['edge_count']} | " \
+        stats_text = f"Files: {stats['file_count']} | Links: {stats['link_count']} | " \
                      f"Density: {stats['density']:.3f}"
         content.append(Paragraph(stats_text, styles['Normal']))
         
@@ -294,27 +294,50 @@ class PDFExporter:
         """
         try:
             # Create figure
-            fig, ax = plt.subplots(figsize=(12, 8), dpi=100)
+            fig, ax = plt.subplots(figsize=(14, 10), dpi=100)
             
-            # Use hierarchical layout
+            # Use hierarchical layout with more spacing
             if digraph.number_of_nodes() > 0:
-                pos = nx.spring_layout(digraph, k=2, iterations=50, seed=42)
+                pos = nx.spring_layout(digraph, k=3, iterations=80, seed=42)
             else:
                 pos = {}
             
-            # Draw nodes
+            # Draw nodes with colors by file type
             node_colors = []
+            node_sizes = []
+            file_type_colors = {
+                'blend': '#FF6B35',  # Orange for blend files
+                'png': '#004E89',    # Blue for images
+                'jpg': '#004E89',
+                'jpeg': '#004E89',
+                'exr': '#004E89',
+                'hdr': '#004E89',
+                'wav': '#1F77B4',    # Light blue for audio
+                'mp3': '#1F77B4',
+                'flac': '#1F77B4',
+                'txt': '#2CA02C',    # Green for text
+                'json': '#2CA02C',
+                'csv': '#2CA02C',
+                'obj': '#9467BD',    # Purple for 3D models
+                'fbx': '#9467BD',
+                'gltf': '#9467BD',
+            }
+            
             for node in digraph.nodes():
-                # Color by folder depth
-                depth = node.count('/')
-                node_colors.append(depth)
+                file_type = digraph.nodes[node].get('file_type', 'unknown')
+                color = file_type_colors.get(file_type, '#D3D3D3')
+                node_colors.append(color)
+                
+                # Size nodes by file size (with minimum)
+                size = max(300, digraph.nodes[node].get('size', 1000) / 10000)
+                node_sizes.append(size)
             
             nx.draw_networkx_nodes(
                 digraph,
                 pos,
                 node_color=node_colors,
-                node_size=500,
-                cmap=plt.cm.Blues,
+                node_size=node_sizes,
+                alpha=0.8,
                 ax=ax,
             )
             
@@ -340,7 +363,7 @@ class PDFExporter:
                 ax=ax,
             )
             
-            ax.set_title('Project Dependency Graph (by folder hierarchy)', fontsize=14, fontweight='bold')
+            ax.set_title('Project Dependency Graph (File-Level)', fontsize=14, fontweight='bold')
             ax.axis('off')
             
             # Save to temp file
