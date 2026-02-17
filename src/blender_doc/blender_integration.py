@@ -63,71 +63,109 @@ except Exception as e:
     print(json.dumps({"error": str(e), "external_files": []}))
     sys.exit(0)
 
-external_files = []
+external_files = set()
 
-# Check for linked libraries (linked .blend files)
+def resolve_path(path_str, base_dir):
+    \"\"\"Resolve a path, handling Blender relative paths.\"\"\"
+    if not path_str:
+        return None
+    # Blender uses // for relative paths
+    if path_str.startswith('//'):
+        path_str = str(Path(base_dir) / path_str[2:])
+    # Make absolute if relative
+    if not Path(path_str).is_absolute():
+        path_str = str(Path(base_dir) / path_str)
+    try:
+        # Normalize the path
+        resolved = str(Path(path_str).resolve())
+        return resolved
+    except:
+        return None
+
+# 1. Check for linked libraries (primary source)
 for library in bpy.data.libraries:
     if library.filepath:
-        lib_path = library.filepath
-        # Handle relative paths
-        if not Path(lib_path).is_absolute():
-            lib_path = str(Path(blend_dir) / lib_path)
-        # Normalize the path
-        try:
-            lib_path = str(Path(lib_path).resolve())
-            external_files.append(lib_path)
-        except:
-            external_files.append(lib_path)
+        lib_path = resolve_path(library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
 
-# Check for image textures
+# 2. Check for linked objects directly
+for obj in bpy.data.objects:
+    # Objects can be linked from another file
+    if obj.library:
+        lib_path = resolve_path(obj.library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
+    
+    # Check object data (mesh, curve, etc)
+    if hasattr(obj, 'data') and obj.data:
+        if hasattr(obj.data, 'library') and obj.data.library:
+            lib_path = resolve_path(obj.data.library.filepath, blend_dir)
+            if lib_path:
+                external_files.add(lib_path)
+
+# 3. Check for linked collections
+for collection in bpy.data.collections:
+    if collection.library:
+        lib_path = resolve_path(collection.library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
+
+# 4. Check for linked materials
+for material in bpy.data.materials:
+    if material.library:
+        lib_path = resolve_path(material.library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
+
+# 5. Check for image textures
 for image in bpy.data.images:
     if image.filepath and not image.packed_file:
-        img_path = image.filepath
-        # Handle relative paths (// prefix in Blender means relative to blend file)
-        if img_path.startswith('//'):
-            img_path = str(Path(blend_dir) / img_path[2:])
-        elif not Path(img_path).is_absolute():
-            img_path = str(Path(blend_dir) / img_path)
-        # Normalize the path
-        try:
-            img_path = str(Path(img_path).resolve())
-            if Path(img_path).exists():
-                external_files.append(img_path)
-        except:
-            pass
+        img_path = resolve_path(image.filepath, blend_dir)
+        if img_path and Path(img_path).exists():
+            external_files.add(img_path)
 
-# Check for linked objects/collections and node tree files
+# 6. Check for linked actions (animations)
+for action in bpy.data.actions:
+    if action.library:
+        lib_path = resolve_path(action.library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
+
+# 7. Check for linked node trees (shader, compositor, geometry)
+for node_tree in bpy.data.node_groups:
+    if node_tree.library:
+        lib_path = resolve_path(node_tree.library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
+
+# 8. Check particle systems for external dependencies
 for obj in bpy.data.objects:
-    # Check for linked object data
-    if hasattr(obj, 'data') and obj.data and hasattr(obj.data, 'library'):
-        if obj.data.library and obj.data.library.filepath:
-            lib_path = obj.data.library.filepath
-            if not Path(lib_path).is_absolute():
-                lib_path = str(Path(blend_dir) / lib_path)
-            try:
-                lib_path = str(Path(lib_path).resolve())
-                if lib_path not in external_files:
-                    external_files.append(lib_path)
-            except:
-                pass
+    if hasattr(obj, 'particle_systems'):
+        for ps in obj.particle_systems:
+            if hasattr(ps, 'settings') and hasattr(ps.settings, 'instance_collection'):
+                if ps.settings.instance_collection:
+                    coll = ps.settings.instance_collection
+                    if hasattr(coll, 'library') and coll.library:
+                        lib_path = resolve_path(coll.library.filepath, blend_dir)
+                        if lib_path:
+                            external_files.add(lib_path)
 
-# Check for compositor/shader node trees that reference files
-for world in bpy.data.worlds:
-    if world.node_tree:
-        for node in world.node_tree.nodes:
-            if hasattr(node, 'filepath') and node.filepath:
-                file_path = node.filepath
-                if not Path(file_path).is_absolute():
-                    file_path = str(Path(blend_dir) / file_path)
-                try:
-                    file_path = str(Path(file_path).resolve())
-                    if Path(file_path).exists() and file_path not in external_files:
-                        external_files.append(file_path)
-                except:
-                    pass
+# 9. Check for linked meshes, curves, etc
+for mesh in bpy.data.meshes:
+    if hasattr(mesh, 'library') and mesh.library:
+        lib_path = resolve_path(mesh.library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
 
-# Remove duplicates
-external_files = list(set(external_files))
+for curve in bpy.data.curves:
+    if hasattr(curve, 'library') and curve.library:
+        lib_path = resolve_path(curve.library.filepath, blend_dir)
+        if lib_path:
+            external_files.add(lib_path)
+
+# Convert to sorted list
+external_files = sorted(list(external_files))
 
 print(json.dumps({"external_files": external_files, "error": None}))
 """

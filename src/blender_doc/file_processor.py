@@ -104,8 +104,13 @@ class FileProcessor:
             # Extract external dependencies
             external_files = self.blender_integration.extract_blend_dependencies(entry.path)
             
+            if external_files:
+                print(f"  Found {len(external_files)} dependencies", file=sys.stderr)
+            
             for external_path_str in external_files:
                 external_path = Path(external_path_str)
+                
+                print(f"    - {external_path.name}", file=sys.stderr)
                 
                 # Check if we should process this file
                 if not self.follow_external and not self._is_in_root_folder(external_path):
@@ -116,7 +121,7 @@ class FileProcessor:
                 # Check if file exists
                 if not external_path.exists():
                     print(
-                        f"Warning: External file not found: {external_path_str}",
+                        f"  Warning: External file not found: {external_path_str}",
                         file=sys.stderr
                     )
                     continue
@@ -145,7 +150,7 @@ class FileProcessor:
             # Blender integration not available - still extract basic metadata
             entry.metadata['blend'] = BlendFileMetadata().to_dict()
         
-        print(f"Processed Blender file: {entry.name} ({len(entry.links)} dependencies)",
+        print(f"Processed Blender file: {entry.name} ({len(entry.links)} linked files)",
               file=sys.stderr)
     
     def _process_unknown_file(self, entry: FileEntry) -> None:
